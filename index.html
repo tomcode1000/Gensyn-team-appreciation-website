@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gensyn Community Reviews</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">
+                <img src="Gensyn%20logo/L-4D2qr9_400x400__1_-removebg-preview.png" alt="Gensyn Logo">
+                <h1>Gensyn Community Reviews</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#team">Team</a></li>
+                    <li><a href="#moderators">Moderators</a></li>
+                    <li><a href="#top-performer">Top Performer</a></li>
+                    <li><a href="#submit-review">Submit Review</a></li>
+                    <li><a href="#community-reviews">Reviews</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <h2>Community Feedback Platform</h2>
+                <p>Share your experiences with Gensyn team members and moderators to help improve our community</p>
+            </div>
+        </section>
+
+        <section id="team" class="team-section">
+            <div class="container">
+                <h2>Core Team Members</h2>
+                <div class="team-grid" id="teamGrid">
+                    <!-- Team members will be dynamically loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <section id="moderators" class="moderators-section">
+            <div class="container">
+                <h2>Moderators</h2>
+                <div class="moderators-grid" id="moderatorsGrid">
+                    <!-- Moderators will be dynamically loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <section id="top-performer" class="top-performer-section">
+            <div class="container">
+                <h2>Top Performer of the Week</h2>
+                <div class="top-performer-content">
+                    <div class="current-winners">
+                        <h3>This Week's Leader</h3>
+                        <div class="winners-container">
+                            <div class="winner-card">
+                                <div class="winner-badge">🏆</div>
+                                <img id="topPerformerImage" src="Core%20Team/antonio%20goncalves.jpg" alt="Top Performer" class="member-image">
+                                <div class="winner-info">
+                                    <h4 id="topPerformerName">Antonio Goncalves</h4>
+                                    <p id="topPerformerPosition">Smart Contract Developer</p>
+                                    <div class="vote-count">Votes: <span id="topPerformerVotes">42</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="voting-section">
+                        <h3>Vote for This Week's Top Performer</h3>
+                        <p>As a community member, vote for the person who has made the biggest impact this week!</p>
+                        
+                        <div class="voting-controls">
+                            <div class="form-group">
+                                <label for="voteCategory">Category:</label>
+                                <select id="voteCategory">
+                                    <option value="team">Core Team Member</option>
+                                    <option value="moderator">Moderator</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="voteCandidate">Select Candidate:</label>
+                                <select id="voteCandidate">
+                                    <!-- Options will be populated dynamically -->
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="voterName">Your Discord/Twitter Username:</label>
+                                <input type="text" id="voterName" placeholder="e.g., @username">
+                            </div>
+                            
+                            <button id="castVoteBtn">Cast Vote</button>
+                        </div>
+                        
+                        <div class="voting-stats">
+                            <h4>Voting Statistics</h4>
+                            <div id="votingStatsContainer">
+                                <!-- Voting stats will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="submit-review" class="review-form-section">
+            <div class="container">
+                <h2>Share Your Experience</h2>
+                <form id="reviewForm">
+                    <div class="form-group">
+                        <label for="revieweeType">Review Type:</label>
+                        <select id="revieweeType" required>
+                            <option value="">Select Type</option>
+                            <option value="team">Core Team Member</option>
+                            <option value="moderator">Moderator</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="revieweeName">Person's Name:</label>
+                        <select id="revieweeName" required>
+                            <option value="">Select a person after choosing review type</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reviewTitle">Review Title:</label>
+                        <input type="text" id="reviewTitle" required placeholder="Brief summary of your experience">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reviewRating">Rating:</label>
+                        <div class="rating">
+                            <span class="star" data-rating="1">★</span>
+                            <span class="star" data-rating="2">★</span>
+                            <span class="star" data-rating="3">★</span>
+                            <span class="star" data-rating="4">★</span>
+                            <span class="star" data-rating="5">★</span>
+                        </div>
+                        <input type="hidden" id="reviewRating" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reviewText">Your Experience:</label>
+                        <textarea id="reviewText" rows="5" required placeholder="Share your detailed experience"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reviewerName">Your Discord/Twitter Username:</label>
+                        <input type="text" id="reviewerName" placeholder="e.g., @username or Anonymous">
+                    </div>
+                    
+                    <button type="submit">Submit Feedback</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="community-reviews" class="reviews-section">
+            <div class="container">
+                <h2>Community Feedback</h2>
+                <div id="reviewsContainer">
+                    <p>No feedback yet. Be the first to share your experience!</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Member Reviews Modal -->
+    <div id="member-reviews-modal" class="modal">
+        <div class="modal-content">
+            <span id="close-modal" class="close">&times;</span>
+            <h2>Feedback for <span id="modal-member-name"></span></h2>
+            <div id="member-reviews-container">
+                <!-- Reviews for the selected member will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Gensyn Community. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
