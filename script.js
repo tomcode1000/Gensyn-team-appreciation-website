@@ -26,15 +26,28 @@ const moderators = [
     { name: "Xailong", position: "Moderator", image: "Moderators/Xailong%20-%20Moderator.jpg" }
 ];
 
-// Store reviews and votes in memory (in a real app, this would be stored on a server)
-let reviews = [];
-let votes = {};
+// Store reviews and votes in localStorage (persistent storage)
+let reviews = JSON.parse(localStorage.getItem('gensynReviews')) || [];
+let votes = JSON.parse(localStorage.getItem('gensynVotes')) || {};
 
-// Initialize votes for each member
+// Debug: Log the loaded reviews and votes to console
+console.log('Loaded reviews from localStorage:', reviews);
+console.log('Loaded votes from localStorage:', votes);
+
+// Initialize votes for each member if empty
 function initializeVotes() {
+    let initialized = false;
     [...teamMembers, ...moderators].forEach(member => {
-        votes[member.name] = 0;
+        if (!(member.name in votes)) {
+            votes[member.name] = 0;
+            initialized = true;
+        }
     });
+    
+    // Save to localStorage if we initialized any votes
+    if (initialized) {
+        localStorage.setItem('gensynVotes', JSON.stringify(votes));
+    }
 }
 
 // Function to create member cards
@@ -179,6 +192,9 @@ function displayReviews() {
     const reviewsContainer = document.getElementById('reviewsContainer');
     if (!reviewsContainer) return;
     
+    // Debug: Log current reviews
+    console.log('Displaying reviews:', reviews);
+    
     if (reviews.length === 0) {
         reviewsContainer.innerHTML = '<p>No feedback yet. Be the first to share your experience!</p>';
         return;
@@ -239,6 +255,9 @@ function populateVotingCandidates() {
 function updateVotingStats() {
     const statsContainer = document.getElementById('votingStatsContainer');
     
+    // Debug: Log current votes
+    console.log('Updating voting stats with votes:', votes);
+    
     // Get top 5 candidates by votes
     const sortedCandidates = Object.entries(votes)
         .sort(([,a], [,b]) => b - a)
@@ -277,6 +296,9 @@ function updateVotingStats() {
             document.getElementById('topPerformerImage').src = person.image;
         }
     }
+    
+    // Save votes to localStorage
+    localStorage.setItem('gensynVotes', JSON.stringify(votes));
 }
 
 // Function to cast a vote
@@ -311,8 +333,25 @@ function castVote() {
 
 // Star rating functionality
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded - Initializing App');
+    
     // Initialize votes
     initializeVotes();
+    
+    // Populate voting candidates
+    populateVotingCandidates();
+    
+    // Initialize voting stats
+    updateVotingStats();
+    
+    // Display existing reviews
+    displayReviews();
+    
+    // Populate grids when page loads
+    populateTeamGrid();
+    populateModeratorsGrid();
+    
+    console.log('App Initialization Complete');
     
     const stars = document.querySelectorAll('.star');
     const ratingInput = document.getElementById('reviewRating');
@@ -400,6 +439,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add to reviews array
         reviews.push(review);
         
+        // Save to localStorage
+        localStorage.setItem('gensynReviews', JSON.stringify(reviews));
+        
         // Display reviews
         displayReviews();
         
@@ -425,12 +467,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Voting functionality
     document.getElementById('castVoteBtn').addEventListener('click', castVote);
     
-    // Populate voting candidates
-    populateVotingCandidates();
-    
-    // Initialize voting stats
-    updateVotingStats();
-    
     // Close modal when clicking on the close button
     document.getElementById('close-modal').addEventListener('click', closeMemberModal);
     
@@ -441,8 +477,4 @@ document.addEventListener('DOMContentLoaded', function() {
             closeMemberModal();
         }
     });
-    
-    // Populate grids when page loads
-    populateTeamGrid();
-    populateModeratorsGrid();
 });
