@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Fix for Date Column</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Quick Fix for Date Column Issue</h1>
+        
+        <div class="status info">
+            <strong>Info:</strong> This tool applies a quick fix for the date column issue.
+        </div>
+        
+        <button id="applyFix">Apply Quick Fix</button>
+        <button id="testAfterFix">Test After Fix</button>
+        <button id="clearLog">Clear Log</button>
+        
+        <div class="log" id="logOutput"></div>
+        
+        <div id="resultStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase configuration (same as in your supabase.js)
+        const SUPABASE_URL = 'https://pdhehczqtdszltszuudk.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_4Eq6DOCfHmqP_9NJriYAiA_ffv_sXGy';
+        
+        // Create a fresh Supabase client to avoid any cached schema issues
+        const freshSupabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            db: {
+                schema: 'public'
+            },
+            auth: {
+                persistSession: false
+            }
+        });
+        
+        // Log function to display messages
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logEntry.style.color = type === 'error' ? '#ff5555' : type === 'success' ? '#55ff55' : '#ffffff';
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('resultStatus');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+        }
+        
+        // Apply quick fix
+        document.getElementById('applyFix').addEventListener('click', async function() {
+            log('=== APPLYING QUICK FIX ===');
+            updateStatus('Applying quick fix...', 'info');
+            
+            try {
+                // Step 1: Force refresh the schema by making a direct query
+                log('Step 1: Forcing schema refresh with direct query...');
+                
+                const { data: refreshData, error: refreshError } = await freshSupabaseClient
+                    .from('reviews')
+                    .select('id, revieweeType, revieweeName, title, rating, text, reviewerName, date, created_at')
+                    .limit(1);
+                
+                if (refreshError) {
+                    log(`Refresh error (this is expected if table is empty): ${refreshError.message}`, 'info');
+                } else {
+                    log('Schema refresh query successful', 'success');
+                }
+                
+                // Step 2: Wait a moment for the refresh to propagate
+                log('Step 2: Waiting for schema refresh to propagate...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Step 3: Try a simple insert to test
+                log('Step 3: Testing insert with fresh client...');
+                
+                const today = new Date().toISOString().split('T')[0];
+                const testReview = {
+                    revieweeType: 'fix-test',
+                    revieweeName: 'Fix Test',
+                    title: 'Quick Fix Test',
+                    rating: 5,
+                    text: 'Testing the quick fix for date column issue',
+                    reviewerName: 'Quick Fix Tool',
+                    date: today
+                };
+                
+                const { data, error } = await freshSupabaseClient
+                    .from('reviews')
+                    .insert([testReview])
+                    .select();
+                
+                if (error) {
+                    log(`Insert error: ${JSON.stringify(error, null, 2)}`, 'error');
+                    updateStatus('Quick fix failed', 'error');
+                    return;
+                }
+                
+                log(`Insert successful with fresh client: ${JSON.stringify(data, null, 2)}`, 'success');
+                updateStatus('Quick fix applied successfully!', 'success');
+            } catch (error) {
+                log(`Exception during quick fix: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test after fix
+        document.getElementById('testAfterFix').addEventListener('click', async function() {
+            log('=== TESTING AFTER FIX ===');
+            updateStatus('Testing after fix...', 'info');
+            
+            try {
+                // Try inserting using the original method
+                log('Testing with original supabase.js functions...');
+                
+                // Dynamically load supabase.js to test with the original functions
+                if (typeof window.GensynSupabase === 'undefined') {
+                    log('Loading supabase.js...');
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'supabase.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                    log('supabase.js loaded', 'success');
+                }
+                
+                // Wait a moment for the script to initialize
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                if (typeof window.GensynSupabase !== 'undefined' && typeof window.GensynSupabase.addReview === 'function') {
+                    log('Testing addReview function...');
+                    
+                    const today = new Date().toISOString().split('T')[0];
+                    const testReview = {
+                        revieweeType: 'post-fix',
+                        revieweeName: 'Post Fix Test',
+                        title: 'Post Fix Test',
+                        rating: 4,
+                        text: 'Testing after applying the quick fix',
+                        reviewerName: 'Post Fix Tool',
+                        date: today
+                    };
+                    
+                    const result = await window.GensynSupabase.addReview(testReview);
+                    
+                    if (result) {
+                        log(`addReview successful: ${JSON.stringify(result, null, 2)}`, 'success');
+                        updateStatus('Test successful!', 'success');
+                    } else {
+                        log('addReview returned null/undefined', 'error');
+                        updateStatus('Test failed', 'error');
+                    }
+                } else {
+                    log('GensynSupabase functions not available', 'error');
+                    updateStatus('Functions not available', 'error');
+                }
+            } catch (error) {
+                log(`Exception during post-fix test: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Clear log
+        document.getElementById('clearLog').addEventListener('click', function() {
+            document.getElementById('logOutput').innerHTML = '';
+            updateStatus('Log cleared', 'info');
+        });
+        
+        // Initialize
+        log('=== QUICK FIX FOR DATE COLUMN ISSUE ===');
+        log('Click "Apply Quick Fix" to begin');
+        updateStatus('Ready to apply quick fix');
+    </script>
+</body>
+</html>

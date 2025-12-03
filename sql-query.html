@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Query Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            background-color: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: green;
+            background-color: #e8f5e9;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: blue;
+            background-color: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        pre {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SQL Query Tool</h1>
+        
+        <div>
+            <h3>Enter SQL Query:</h3>
+            <textarea id="sqlQuery">SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'reviews' 
+ORDER BY ordinal_position;</textarea>
+            <br>
+            <button id="executeQuery">Execute Query</button>
+            <button id="clearOutput">Clear Output</button>
+            <button id="loadSampleQueries">Load Sample Queries</button>
+        </div>
+        
+        <div id="output"></div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://pdhehczqtdszltszuudk.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_4Eq6DOCfHmqP_9NJriYAiA_ffv_sXGy';
+        
+        // Create Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function addOutput(message, type = 'info') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function addCodeOutput(data) {
+            const output = document.getElementById('output');
+            const pre = document.createElement('pre');
+            pre.textContent = JSON.stringify(data, null, 2);
+            output.appendChild(pre);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        document.getElementById('executeQuery').addEventListener('click', async function() {
+            const query = document.getElementById('sqlQuery').value.trim();
+            if (!query) {
+                addOutput('Please enter a SQL query', 'error');
+                return;
+            }
+            
+            addOutput(`Executing query: ${query}`, 'info');
+            
+            try {
+                // Note: Supabase JS client doesn't support raw SQL queries directly
+                // We'll need to use RPC calls or check if there's a way to execute raw SQL
+                // For now, let's try to use the information_schema to get column info
+                
+                if (query.toLowerCase().includes('information_schema.columns')) {
+                    addOutput('Querying information_schema to get column information...', 'info');
+                    
+                    // This is a special case - we're trying to get column information
+                    // Let's try a different approach by attempting various column names
+                    const possibleColumns = [
+                        'id', 'revieweeType', 'revieweeName', 'revieweetype', 'revieweename',
+                        'title', 'rating', 'text', 'reviewerName', 'reviewername',
+                        'date', 'created_at'
+                    ];
+                    
+                    addOutput('Testing which columns actually exist...', 'info');
+                    
+                    const existingColumns = [];
+                    for (const column of possibleColumns) {
+                        try {
+                            const testQuery = `SELECT ${column} FROM reviews LIMIT 1`;
+                            // We can't execute raw SQL with the JS client, so let's try select with specific columns
+                            const { data, error } = await supabase
+                                .from('reviews')
+                                .select(column)
+                                .limit(1);
+                                
+                            if (error) {
+                                if (error.code !== '42703') { // Not the "column does not exist" error
+                                    addOutput(`Unexpected error testing column ${column}: ${error.message}`, 'info');
+                                }
+                            } else {
+                                existingColumns.push(column);
+                                addOutput(`Column exists: ${column}`, 'success');
+                            }
+                        } catch (err) {
+                            // Ignore errors for individual column tests
+                        }
+                    }
+                    
+                    if (existingColumns.length > 0) {
+                        addOutput(`Found ${existingColumns.length} existing columns:`, 'success');
+                        addCodeOutput(existingColumns);
+                    } else {
+                        addOutput('No columns found through testing', 'error');
+                    }
+                } else {
+                    addOutput('Raw SQL execution is not supported with the Supabase JS client. Please use the Supabase SQL editor in the dashboard for complex queries.', 'error');
+                }
+            } catch (err) {
+                addOutput(`Exception during query execution: ${err.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('clearOutput').addEventListener('click', function() {
+            document.getElementById('output').innerHTML = '';
+        });
+        
+        document.getElementById('loadSampleQueries').addEventListener('click', function() {
+            const queries = [
+                "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'reviews' ORDER BY ordinal_position;",
+                "SELECT * FROM reviews LIMIT 5;",
+                "SELECT COUNT(*) FROM reviews;",
+                "SELECT DISTINCT revieweeType FROM reviews;"
+            ];
+            
+            const queryList = queries.map((q, i) => `${i+1}. ${q}`).join('\n\n');
+            document.getElementById('sqlQuery').value = queryList;
+        });
+    </script>
+</body>
+</html>

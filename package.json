@@ -1,0 +1,26 @@
+{
+  "name": "gensyn-team",
+  "version": "1.0.0",
+  "description": "A website for the Gensyn community to submit reviews and vote for team members and moderators.",
+  "main": "script.js",
+  "type": "module",
+  "scripts": {
+    "start": "npx serve .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.86.0",
+    "serve": "^14.2.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tomcode1000/Gensyn-team-appreciation-website.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tomcode1000/Gensyn-team-appreciation-website/issues"
+  },
+  "homepage": "https://github.com/tomcode1000/Gensyn-team-appreciation-website#readme"
+}

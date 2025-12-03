@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Database Connection Test</h1>
+    <button id="testButton">Test Database Connection</button>
+    <div id="result"></div>
+
+    <script src="supabase.js"></script>
+    <script>
+        document.getElementById('testButton').addEventListener('click', async function() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                // Test fetching reviews
+                const reviews = await window.GensynSupabase.fetchReviews();
+                resultDiv.innerHTML += `<p>Fetched ${reviews.length} reviews</p>`;
+                console.log('Reviews:', reviews);
+                
+                // Test fetching votes
+                const votes = await window.GensynSupabase.fetchVotes();
+                resultDiv.innerHTML += `<p>Fetched votes for ${Object.keys(votes).length} people</p>`;
+                console.log('Votes:', votes);
+                
+                // Test inserting a simple review
+                const testReview = {
+                    revieweeType: 'team',
+                    revieweeName: 'Test User',
+                    title: 'Test Review',
+                    rating: 5,
+                    text: 'This is a test review',
+                    reviewerName: 'Tester',
+                    date: new Date().toISOString().split('T')[0]
+                };
+                
+                resultDiv.innerHTML += '<p>Inserting test review...</p>';
+                const addedReview = await window.GensynSupabase.addReview(testReview);
+                
+                if (addedReview) {
+                    resultDiv.innerHTML += '<p style="color: green;">Test review added successfully!</p>';
+                    console.log('Added review:', addedReview);
+                } else {
+                    resultDiv.innerHTML += '<p style="color: red;">Failed to add test review</p>';
+                }
+            } catch (error) {
+                console.error('Test error:', error);
+                resultDiv.innerHTML += `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

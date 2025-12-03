@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Debug</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase Debug Tool</h1>
+    <button id="testConnection">Test Connection</button>
+    <button id="testSchema">Check Table Schema</button>
+    <button id="testInsert">Test Insert</button>
+    <div id="output"></div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://pdhehczqtdszltszuudk.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_4Eq6DOCfHmqP_9NJriYAiA_ffv_sXGy';
+        
+        // Create Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        document.getElementById('testConnection').addEventListener('click', async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Testing connection...</p>';
+            
+            try {
+                // Simple query to test connection
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .select('id')
+                    .limit(1);
+                
+                if (error) {
+                    output.innerHTML += `<p style="color: red;">Connection failed: ${JSON.stringify(error)}</p>`;
+                    console.error('Connection error:', error);
+                } else {
+                    output.innerHTML += '<p style="color: green;">Connection successful!</p>';
+                    console.log('Connection data:', data);
+                }
+            } catch (err) {
+                output.innerHTML += `<p style="color: red;">Exception: ${err.message}</p>`;
+                console.error('Connection exception:', err);
+            }
+        });
+        
+        document.getElementById('testSchema').addEventListener('click', async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Checking table schema...</p>';
+            
+            try {
+                // Try to get table information
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .select('*')
+                    .limit(0); // Just get the structure, no data
+                
+                if (error) {
+                    output.innerHTML += `<p style="color: red;">Schema check failed: ${JSON.stringify(error)}</p>`;
+                    console.error('Schema error:', error);
+                } else {
+                    output.innerHTML += '<p style="color: green;">Schema check successful!</p>';
+                    output.innerHTML += `<p>Columns: ${Object.keys(data[0] || {}).join(', ')}</p>`;
+                    console.log('Schema data:', data);
+                }
+            } catch (err) {
+                output.innerHTML += `<p style="color: red;">Exception: ${err.message}</p>`;
+                console.error('Schema exception:', err);
+            }
+        });
+        
+        document.getElementById('testInsert').addEventListener('click', async function() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<p>Testing insert...</p>';
+            
+            // Test data
+            const testData = {
+                revieweeType: 'team',
+                revieweeName: 'Debug Test',
+                title: 'Debug Review',
+                rating: 5,
+                text: 'This is a debug test review',
+                reviewerName: 'Debugger',
+                date: new Date().toISOString().split('T')[0]
+            };
+            
+            output.innerHTML += `<p>Sending data: ${JSON.stringify(testData)}</p>`;
+            
+            try {
+                // Try inserting
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .insert([testData])
+                    .select();
+                
+                if (error) {
+                    output.innerHTML += `<p style="color: red;">Insert failed: ${JSON.stringify(error)}</p>`;
+                    console.error('Insert error:', error);
+                } else {
+                    output.innerHTML += '<p style="color: green;">Insert successful!</p>';
+                    console.log('Insert data:', data);
+                }
+            } catch (err) {
+                output.innerHTML += `<p style="color: red;">Exception: ${err.message}</p>`;
+                console.error('Insert exception:', err);
+            }
+        });
+    </script>
+</body>
+</html>

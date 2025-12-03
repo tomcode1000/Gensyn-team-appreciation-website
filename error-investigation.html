@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error Investigation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .danger {
+            background-color: #f44336;
+        }
+        .danger:hover {
+            background-color: #d32f2f;
+        }
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .test-case {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Error Investigation Tool</h1>
+        
+        <div class="status warning">
+            <strong>Investigation Mode:</strong> This tool focuses on identifying the specific cause of the 400 error.
+        </div>
+        
+        <h2>Investigation Steps</h2>
+        
+        <div class="test-case">
+            <h3>Step 1: Verify Table Structure</h3>
+            <button id="checkTableStructure">Check Actual Table Structure</button>
+        </div>
+        
+        <div class="test-case">
+            <h3>Step 2: Test Individual Components</h3>
+            <button id="testDateHandling">Test Date Format Handling</button>
+            <button id="testRatingValidation">Test Rating Validation</button>
+            <button id="testRequiredFields">Test Required Fields</button>
+        </div>
+        
+        <div class="test-case">
+            <h3>Step 3: Progressive Complexity Tests</h3>
+            <button id="testOneField">Test One Field Insert</button>
+            <button id="testEssentialFields">Test Essential Fields</button>
+            <button id="testAllFields">Test All Fields</button>
+        </div>
+        
+        <div class="test-case">
+            <h3>Step 4: Advanced Diagnostics</h3>
+            <button id="compareWithMigration">Compare with Migration File</button>
+            <button id="testRawSql">Test Raw SQL Insert</button>
+        </div>
+        
+        <button id="clearLog">Clear Log</button>
+        
+        <div class="log" id="logOutput"></div>
+        
+        <div id="resultStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        // Log function to display messages
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            // Format the message
+            let formattedMessage = message;
+            if (typeof message === 'object') {
+                formattedMessage = JSON.stringify(message, null, 2);
+            }
+            
+            logEntry.textContent = `[${timestamp}] ${formattedMessage}`;
+            logEntry.style.color = type === 'error' ? '#ff5555' : 
+                                 type === 'success' ? '#55ff55' : 
+                                 type === 'warning' ? '#ffff55' : '#ffffff';
+            
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('resultStatus');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+        }
+        
+        // Check actual table structure
+        document.getElementById('checkTableStructure').addEventListener('click', async function() {
+            log('=== CHECKING ACTUAL TABLE STRUCTURE ===');
+            updateStatus('Checking table structure...', 'info');
+            
+            try {
+                // Use PostgreSQL system tables to get actual structure
+                const { data, error } = await supabaseClient
+                    .rpc('execute_sql', {
+                        sql: `
+                            SELECT column_name, data_type, is_nullable, column_default
+                            FROM information_schema.columns 
+                            WHERE table_name = 'reviews' 
+                            ORDER BY ordinal_position
+                        `
+                    });
+                
+                if (error) {
+                    log(`Cannot query system tables: ${error.message}`, 'error');
+                    log('Trying alternative method...');
+                    
+                    // Alternative: Try to insert with all possible columns
+                    const testColumns = [
+                        'id', 'revieweeType', 'revieweeName', 'title', 
+                        'rating', 'text', 'reviewerName', 'date', 'created_at'
+                    ];
+                    
+                    for (const column of testColumns) {
+                        try {
+                            const { data: colData, error: colError } = await supabaseClient
+                                .from('reviews')
+                                .select(column)
+                                .limit(1);
+                            
+                            if (colError) {
+                                log(`COLUMN MISSING: ${column} - ${colError.message}`, 'error');
+                            } else {
+                                log(`COLUMN EXISTS: ${column}`, 'success');
+                            }
+                        } catch (e) {
+                            log(`COLUMN ERROR: ${column} - ${e.message}`, 'error');
+                        }
+                    }
+                } else {
+                    log(`Actual table structure: ${JSON.stringify(data, null, 2)}`, 'info');
+                }
+                
+                updateStatus('Table structure check complete', 'info');
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test date handling
+        document.getElementById('testDateHandling').addEventListener('click', async function() {
+            log('=== TESTING DATE HANDLING ===');
+            updateStatus('Testing date format...', 'info');
+            
+            const dateFormats = [
+                { name: 'ISO String Split', value: new Date().toISOString().split('T')[0] },
+                { name: 'Manual YYYY-MM-DD', value: '2023-12-03' },
+                { name: 'Invalid Format', value: '12/03/2023' },
+                { name: 'Another Invalid', value: '2023/12/03' }
+            ];
+            
+            for (const format of dateFormats) {
+                log(`Testing: ${format.name} = ${format.value}`);
+                
+                const testData = {
+                    revieweeType: 'team',
+                    revieweeName: 'Date Test',
+                    title: `Date Test ${format.name}`,
+                    rating: 3,
+                    text: 'Testing date format',
+                    reviewerName: 'DateTester',
+                    date: format.value
+                };
+                
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('reviews')
+                        .insert([testData])
+                        .select();
+                    
+                    if (error) {
+                        log(`DATE TEST FAILED - ${format.name}: ${error.message}`, 
+                            format.name.includes('Invalid') ? 'success' : 'error');
+                    } else {
+                        log(`DATE TEST PASSED - ${format.name}`, 'success');
+                    }
+                } catch (e) {
+                    log(`DATE TEST EXCEPTION - ${format.name}: ${e.message}`, 'error');
+                }
+            }
+            
+            updateStatus('Date handling test complete', 'info');
+        });
+        
+        // Test rating validation
+        document.getElementById('testRatingValidation').addEventListener('click', async function() {
+            log('=== TESTING RATING VALIDATION ===');
+            updateStatus('Testing rating validation...', 'info');
+            
+            const ratings = [0, 1, 2, 3, 4, 5, 6, -1, '3', null];
+            
+            for (const rating of ratings) {
+                log(`Testing rating: ${rating} (${typeof rating})`);
+                
+                const testData = {
+                    revieweeType: 'team',
+                    revieweeName: 'Rating Test',
+                    title: `Rating Test ${rating}`,
+                    rating: rating,
+                    text: 'Testing rating validation',
+                    reviewerName: 'RatingTester',
+                    date: new Date().toISOString().split('T')[0]
+                };
+                
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('reviews')
+                        .insert([testData])
+                        .select();
+                    
+                    if (error) {
+                        log(`RATING TEST FAILED - ${rating}: ${error.message}`, 
+                            (rating < 1 || rating > 5 || rating === 0 || rating === null) ? 'success' : 'error');
+                    } else {
+                        log(`RATING TEST PASSED - ${rating}`, 'success');
+                    }
+                } catch (e) {
+                    log(`RATING TEST EXCEPTION - ${rating}: ${e.message}`, 'error');
+                }
+            }
+            
+            updateStatus('Rating validation test complete', 'info');
+        });
+        
+        // Test required fields
+        document.getElementById('testRequiredFields').addEventListener('click', async function() {
+            log('=== TESTING REQUIRED FIELDS ===');
+            updateStatus('Testing required fields...', 'info');
+            
+            const testCases = [
+                {
+                    name: 'Missing revieweeType',
+                    data: {
+                        // revieweeType: 'team', // Missing
+                        revieweeName: 'Required Test',
+                        title: 'Required Fields Test',
+                        rating: 3,
+                        text: 'Testing required fields',
+                        reviewerName: 'RequiredTester',
+                        date: new Date().toISOString().split('T')[0]
+                    }
+                },
+                {
+                    name: 'Missing revieweeName',
+                    data: {
+                        revieweeType: 'team',
+                        // revieweeName: 'Required Test', // Missing
+                        title: 'Required Fields Test',
+                        rating: 3,
+                        text: 'Testing required fields',
+                        reviewerName: 'RequiredTester',
+                        date: new Date().toISOString().split('T')[0]
+                    }
+                },
+                {
+                    name: 'Missing title',
+                    data: {
+                        revieweeType: 'team',
+                        revieweeName: 'Required Test',
+                        // title: 'Required Fields Test', // Missing
+                        rating: 3,
+                        text: 'Testing required fields',
+                        reviewerName: 'RequiredTester',
+                        date: new Date().toISOString().split('T')[0]
+                    }
+                }
+            ];
+            
+            for (const testCase of testCases) {
+                log(`Testing: ${testCase.name}`);
+                
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('reviews')
+                        .insert([testCase.data])
+                        .select();
+                    
+                    if (error) {
+                        log(`REQUIRED FIELD TEST FAILED - ${testCase.name}: ${error.message}`, 'success');
+                    } else {
+                        log(`REQUIRED FIELD TEST PASSED - ${testCase.name}`, 'error');
+                    }
+                } catch (e) {
+                    log(`REQUIRED FIELD TEST EXCEPTION - ${testCase.name}: ${e.message}`, 'error');
+                }
+            }
+            
+            updateStatus('Required fields test complete', 'info');
+        });
+        
+        // Test one field insert
+        document.getElementById('testOneField').addEventListener('click', async function() {
+            log('=== TESTING ONE FIELD INSERT ===');
+            updateStatus('Testing one field...', 'info');
+            
+            try {
+                // Try inserting just the minimum required fields one by one
+                const minimalData = {
+                    revieweeType: 'team'
+                };
+                
+                const { data, error } = await supabaseClient
+                    .from('reviews')
+                    .insert([minimalData])
+                    .select();
+                
+                if (error) {
+                    log(`ONE FIELD INSERT FAILED: ${error.message}`, 'error');
+                    log(`Error code: ${error.code}`, 'error');
+                } else {
+                    log(`ONE FIELD INSERT SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test essential fields
+        document.getElementById('testEssentialFields').addEventListener('click', async function() {
+            log('=== TESTING ESSENTIAL FIELDS ===');
+            updateStatus('Testing essential fields...', 'info');
+            
+            try {
+                const essentialData = {
+                    revieweeType: 'team',
+                    revieweeName: 'Essential Test',
+                    title: 'Essential Fields Test',
+                    rating: 3,
+                    text: 'Testing essential fields'
+                    // Missing reviewerName and date
+                };
+                
+                const { data, error } = await supabaseClient
+                    .from('reviews')
+                    .insert([essentialData])
+                    .select();
+                
+                if (error) {
+                    log(`ESSENTIAL FIELDS INSERT FAILED: ${error.message}`, 'error');
+                    log(`Error code: ${error.code}`, 'error');
+                } else {
+                    log(`ESSENTIAL FIELDS INSERT SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test all fields
+        document.getElementById('testAllFields').addEventListener('click', async function() {
+            log('=== TESTING ALL FIELDS ===');
+            updateStatus('Testing all fields...', 'info');
+            
+            try {
+                const allData = {
+                    revieweeType: 'team',
+                    revieweeName: 'Complete Test',
+                    title: 'Complete Fields Test',
+                    rating: 5,
+                    text: 'Testing all fields with complete data',
+                    reviewerName: 'CompleteTester',
+                    date: new Date().toISOString().split('T')[0]
+                };
+                
+                const { data, error } = await supabaseClient
+                    .from('reviews')
+                    .insert([allData])
+                    .select();
+                
+                if (error) {
+                    log(`ALL FIELDS INSERT FAILED: ${error.message}`, 'error');
+                    log(`Error code: ${error.code}`, 'error');
+                    log(`Full error: ${JSON.stringify(error, null, 2)}`, 'error');
+                } else {
+                    log(`ALL FIELDS INSERT SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Compare with migration file
+        document.getElementById('compareWithMigration').addEventListener('click', function() {
+            log('=== COMPARING WITH MIGRATION FILE ===');
+            log('Expected structure from supabase-migration.sql:');
+            log('reviews table:');
+            log('  id SERIAL PRIMARY KEY');
+            log('  revieweeType VARCHAR(50) NOT NULL');
+            log('  revieweeName VARCHAR(100) NOT NULL');
+            log('  title VARCHAR(200) NOT NULL');
+            log('  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5)');
+            log('  text TEXT NOT NULL');
+            log('  reviewerName VARCHAR(100) NOT NULL');
+            log('  date DATE NOT NULL');
+            log('  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()');
+            updateStatus('Migration comparison displayed', 'info');
+        });
+        
+        // Test raw SQL insert
+        document.getElementById('testRawSql').addEventListener('click', async function() {
+            log('=== TESTING RAW SQL INSERT ===');
+            updateStatus('Testing raw SQL...', 'info');
+            
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const sql = `
+                    INSERT INTO reviews (
+                        revieweeType, revieweeName, title, rating, text, reviewerName, date
+                    ) VALUES (
+                        'team', 'SQL Test', 'Raw SQL Test', 4, 'Testing raw SQL insert', 'SQLTester', '${today}'
+                    ) RETURNING *
+                `;
+                
+                log(`Executing SQL: ${sql}`);
+                
+                const { data, error } = await supabaseClient
+                    .rpc('execute_sql', { sql: sql });
+                
+                if (error) {
+                    log(`RAW SQL INSERT FAILED: ${error.message}`, 'error');
+                } else {
+                    log(`RAW SQL INSERT SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Clear log
+        document.getElementById('clearLog').addEventListener('click', function() {
+            document.getElementById('logOutput').innerHTML = '';
+            updateStatus('Log cleared', 'info');
+        });
+        
+        // Initialize
+        log('=== ERROR INVESTIGATION TOOL ===');
+        log('This tool investigates the specific cause of the 400 error');
+        log('Start with Step 1 and work through each step methodically');
+        updateStatus('Ready to investigate error');
+    </script>
+</body>
+</html>

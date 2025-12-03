@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Diagnostic</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .danger {
+            background-color: #f44336;
+        }
+        .danger:hover {
+            background-color: #d32f2f;
+        }
+        .warning {
+            background-color: #ff9800;
+        }
+        .warning:hover {
+            background-color: #e68900;
+        }
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning-bg {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .test-section {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Comprehensive Diagnostic Tool</h1>
+        
+        <div class="status warning-bg">
+            <strong>Diagnostic Mode:</strong> This tool will systematically test all components to identify the issue.
+        </div>
+        
+        <div class="test-section">
+            <h2>Phase 1: Connection Tests</h2>
+            <button id="testConnection">Test Supabase Connection</button>
+            <button id="testTableAccess">Test Table Access</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>Phase 2: Schema Validation</h2>
+            <button id="validateReviewsSchema">Validate Reviews Schema</button>
+            <button id="validateVotesSchema">Validate Votes Schema</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>Phase 3: Insertion Tests</h2>
+            <button id="testMinimalInsert">Test Minimal Insert</button>
+            <button id="testFullInsert">Test Full Insert</button>
+            <button id="testConstraints">Test Constraint Validation</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>Phase 4: Advanced Diagnostics</h2>
+            <button id="forceSchemaRefresh">Force Schema Refresh</button>
+            <button id="showLastError">Show Last Error Details</button>
+        </div>
+        
+        <button id="runAllTests" class="warning">Run All Tests (Sequential)</button>
+        <button id="clearLog">Clear Log</button>
+        
+        <div class="log" id="logOutput"></div>
+        
+        <div id="resultStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        // Global variable to store last error
+        let lastError = null;
+        
+        // Log function to display messages
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            // Format the message
+            let formattedMessage = message;
+            if (typeof message === 'object') {
+                formattedMessage = JSON.stringify(message, null, 2);
+            }
+            
+            logEntry.textContent = `[${timestamp}] ${formattedMessage}`;
+            logEntry.style.color = type === 'error' ? '#ff5555' : 
+                                 type === 'success' ? '#55ff55' : 
+                                 type === 'warning' ? '#ffff55' : '#ffffff';
+            
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('resultStatus');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+        }
+        
+        // Test Supabase connection
+        document.getElementById('testConnection').addEventListener('click', async function() {
+            log('=== TESTING SUPABASE CONNECTION ===');
+            updateStatus('Testing connection...', 'info');
+            
+            try {
+                // Check if supabaseClient exists
+                if (typeof supabaseClient === 'undefined') {
+                    log('ERROR: supabaseClient is undefined', 'error');
+                    updateStatus('Connection failed - client undefined', 'error');
+                    return;
+                }
+                
+                log('supabaseClient exists');
+                
+                // Test a simple query
+                const { data, error } = await supabaseClient
+                    .from('reviews')
+                    .select('id')
+                    .limit(1);
+                
+                if (error) {
+                    log(`CONNECTION ERROR: ${JSON.stringify(error, null, 2)}`, 'error');
+                    lastError = error;
+                    updateStatus(`Connection failed: ${error.message}`, 'error');
+                    return;
+                }
+                
+                log('CONNECTION SUCCESSFUL', 'success');
+                updateStatus('Connection successful', 'success');
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                lastError = error;
+                updateStatus(`Connection error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test table access
+        document.getElementById('testTableAccess').addEventListener('click', async function() {
+            log('=== TESTING TABLE ACCESS ===');
+            updateStatus('Testing table access...', 'info');
+            
+            try {
+                // Test reviews table
+                log('Testing reviews table access...');
+                const { data: reviewsData, error: reviewsError } = await supabaseClient
+                    .from('reviews')
+                    .select('*')
+                    .limit(1);
+                
+                if (reviewsError) {
+                    log(`REVIEWS TABLE ERROR: ${JSON.stringify(reviewsError, null, 2)}`, 'error');
+                    lastError = reviewsError;
+                } else {
+                    log('Reviews table accessible', 'success');
+                }
+                
+                // Test votes table
+                log('Testing votes table access...');
+                const { data: votesData, error: votesError } = await supabaseClient
+                    .from('votes')
+                    .select('*')
+                    .limit(1);
+                
+                if (votesError) {
+                    log(`VOTES TABLE ERROR: ${JSON.stringify(votesError, null, 2)}`, 'error');
+                    lastError = votesError;
+                } else {
+                    log('Votes table accessible', 'success');
+                }
+                
+                if (!reviewsError && !votesError) {
+                    updateStatus('Both tables accessible', 'success');
+                } else {
+                    updateStatus('Table access issues detected', 'error');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                lastError = error;
+                updateStatus(`Table access error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Validate reviews schema
+        document.getElementById('validateReviewsSchema').addEventListener('click', async function() {
+            log('=== VALIDATING REVIEWS SCHEMA ===');
+            updateStatus('Validating schema...', 'info');
+            
+            const expectedColumns = [
+                'id', 'revieweeType', 'revieweeName', 'title', 
+                'rating', 'text', 'reviewerName', 'date', 'created_at'
+            ];
+            
+            try {
+                // Try to query each expected column
+                log('Testing column access...');
+                
+                for (const column of expectedColumns) {
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from('reviews')
+                            .select(column)
+                            .limit(1);
+                        
+                        if (error) {
+                            log(`COLUMN ERROR - ${column}: ${error.message}`, 'error');
+                            lastError = error;
+                        } else {
+                            log(`COLUMN OK - ${column}`, 'success');
+                        }
+                    } catch (colError) {
+                        log(`COLUMN EXCEPTION - ${column}: ${colError.message}`, 'error');
+                        lastError = colError;
+                    }
+                }
+                
+                updateStatus('Schema validation complete', 'info');
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                lastError = error;
+                updateStatus(`Schema validation error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test minimal insert
+        document.getElementById('testMinimalInsert').addEventListener('click', async function() {
+            log('=== TESTING MINIMAL INSERT ===');
+            updateStatus('Testing minimal insert...', 'info');
+            
+            try {
+                // Create minimal review data
+                const minimalReview = {
+                    revieweeType: 'team',
+                    revieweeName: 'Minimal Test',
+                    title: 'Minimal Insert Test',
+                    rating: 3,
+                    text: 'Testing minimal insert',
+                    reviewerName: 'MinTester',
+                    date: new Date().toISOString().split('T')[0]
+                };
+                
+                log(`Inserting: ${JSON.stringify(minimalReview, null, 2)}`);
+                
+                // Try direct insert without using addReview function
+                const { data, error } = await supabaseClient
+                    .from('reviews')
+                    .insert([minimalReview])
+                    .select();
+                
+                if (error) {
+                    log(`MINIMAL INSERT ERROR: ${JSON.stringify(error, null, 2)}`, 'error');
+                    log(`Error details - Code: ${error.code}, Message: ${error.message}`, 'error');
+                    lastError = error;
+                    updateStatus(`Minimal insert failed: ${error.message}`, 'error');
+                    return;
+                }
+                
+                log(`MINIMAL INSERT SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                updateStatus('Minimal insert successful', 'success');
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                lastError = error;
+                updateStatus(`Minimal insert error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test full insert using addReview function
+        document.getElementById('testFullInsert').addEventListener('click', async function() {
+            log('=== TESTING FULL INSERT ===');
+            updateStatus('Testing full insert...', 'info');
+            
+            try {
+                // Check if addReview function exists
+                if (typeof window.GensynSupabase === 'undefined' || typeof window.GensynSupabase.addReview !== 'function') {
+                    log('ERROR: addReview function not available', 'error');
+                    updateStatus('addReview function not available', 'error');
+                    return;
+                }
+                
+                // Create full review data
+                const fullReview = {
+                    revieweeType: 'team',
+                    revieweeName: 'Full Test',
+                    title: 'Full Insert Test',
+                    rating: 4,
+                    text: 'Testing full insert with addReview function',
+                    reviewerName: 'FullTester',
+                    date: new Date().toISOString().split('T')[0]
+                };
+                
+                log(`Calling addReview with: ${JSON.stringify(fullReview, null, 2)}`);
+                
+                const result = await window.GensynSupabase.addReview(fullReview);
+                
+                if (result) {
+                    log(`FULL INSERT SUCCESS: ${JSON.stringify(result, null, 2)}`, 'success');
+                    updateStatus('Full insert successful', 'success');
+                } else {
+                    log('FULL INSERT RETURNED NULL', 'error');
+                    updateStatus('Full insert failed - returned null', 'error');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                lastError = error;
+                updateStatus(`Full insert error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test constraint validation
+        document.getElementById('testConstraints').addEventListener('click', async function() {
+            log('=== TESTING CONSTRAINT VALIDATION ===');
+            updateStatus('Testing constraints...', 'info');
+            
+            // Test cases that should fail
+            const invalidReviews = [
+                {
+                    name: 'Invalid Rating (0)',
+                    data: {
+                        revieweeType: 'team',
+                        revieweeName: 'Constraint Test',
+                        title: 'Constraint Test',
+                        rating: 0, // Invalid - should be 1-5
+                        text: 'Testing constraint validation',
+                        reviewerName: 'ConstraintTester',
+                        date: new Date().toISOString().split('T')[0]
+                    }
+                },
+                {
+                    name: 'Invalid Rating (6)',
+                    data: {
+                        revieweeType: 'team',
+                        revieweeName: 'Constraint Test',
+                        title: 'Constraint Test',
+                        rating: 6, // Invalid - should be 1-5
+                        text: 'Testing constraint validation',
+                        reviewerName: 'ConstraintTester',
+                        date: new Date().toISOString().split('T')[0]
+                    }
+                },
+                {
+                    name: 'Missing Required Fields',
+                    data: {
+                        // Missing several required fields
+                        title: 'Incomplete Test',
+                        rating: 3,
+                        text: 'Testing missing fields'
+                        // Missing revieweeType, revieweeName, reviewerName, date
+                    }
+                }
+            ];
+            
+            try {
+                for (const testCase of invalidReviews) {
+                    log(`Testing: ${testCase.name}`);
+                    
+                    const { data, error } = await supabaseClient
+                        .from('reviews')
+                        .insert([testCase.data])
+                        .select();
+                    
+                    if (error) {
+                        log(`EXPECTED ERROR for ${testCase.name}: ${error.message}`, 'success');
+                    } else {
+                        log(`UNEXPECTED SUCCESS for ${testCase.name}`, 'error');
+                    }
+                }
+                
+                updateStatus('Constraint testing complete', 'info');
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                lastError = error;
+                updateStatus(`Constraint test error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Force schema refresh
+        document.getElementById('forceSchemaRefresh').addEventListener('click', async function() {
+            log('=== FORCING SCHEMA REFRESH ===');
+            updateStatus('Forcing schema refresh...', 'info');
+            
+            try {
+                if (typeof window.GensynSupabase !== 'undefined' && typeof window.GensynSupabase.manualSchemaRefresh === 'function') {
+                    log('Calling manualSchemaRefresh...');
+                    const result = await window.GensynSupabase.manualSchemaRefresh();
+                    log(`Schema refresh result: ${result}`, result ? 'success' : 'error');
+                    updateStatus(result ? 'Schema refresh successful' : 'Schema refresh failed', result ? 'success' : 'error');
+                } else {
+                    log('manualSchemaRefresh function not available, using direct method...');
+                    
+                    // Direct schema refresh
+                    const { data, error } = await supabaseClient
+                        .from('reviews')
+                        .select('id, revieweeType, revieweeName, title, rating, text, reviewerName, date, created_at')
+                        .limit(1);
+                    
+                    if (error && error.code !== 'PGRST204') {
+                        log(`Direct refresh error: ${JSON.stringify(error, null, 2)}`, 'error');
+                        lastError = error;
+                        updateStatus('Direct refresh failed', 'error');
+                        return;
+                    }
+                    
+                    log('Direct schema refresh completed', 'success');
+                    updateStatus('Direct schema refresh completed', 'success');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                lastError = error;
+                updateStatus(`Schema refresh error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Show last error details
+        document.getElementById('showLastError').addEventListener('click', function() {
+            log('=== LAST ERROR DETAILS ===');
+            if (lastError) {
+                log(`Last Error: ${JSON.stringify(lastError, null, 2)}`, 'info');
+                log(`Error Code: ${lastError.code || 'N/A'}`, 'info');
+                log(`Error Message: ${lastError.message || 'N/A'}`, 'info');
+                log(`Error Details: ${lastError.details || 'N/A'}`, 'info');
+                log(`Error Hint: ${lastError.hint || 'N/A'}`, 'info');
+            } else {
+                log('No error recorded yet', 'info');
+            }
+            updateStatus('Last error details displayed', 'info');
+        });
+        
+        // Run all tests sequentially
+        document.getElementById('runAllTests').addEventListener('click', async function() {
+            log('=== RUNNING ALL TESTS ===');
+            updateStatus('Running all tests...', 'info');
+            
+            const testButtons = [
+                'testConnection',
+                'testTableAccess',
+                'validateReviewsSchema',
+                'testMinimalInsert',
+                'testFullInsert'
+            ];
+            
+            for (const buttonId of testButtons) {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    button.click();
+                    // Wait between tests
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+            
+            updateStatus('All tests completed', 'info');
+        });
+        
+        // Clear log
+        document.getElementById('clearLog').addEventListener('click', function() {
+            document.getElementById('logOutput').innerHTML = '';
+            updateStatus('Log cleared', 'info');
+        });
+        
+        // Initialize
+        log('=== COMPREHENSIVE DIAGNOSTIC TOOL ===');
+        log('Click the test buttons to diagnose the issue step by step');
+        log('Start with Phase 1 tests, then move to Phase 2, etc.');
+        updateStatus('Ready to run diagnostics');
+    </script>
+</body>
+</html>

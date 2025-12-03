@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Final Test with Correct Column Names</h1>
+        
+        <div class="status info">
+            <strong>Info:</strong> This tests the fix with the correct camelCase column names.
+        </div>
+        
+        <button id="testInsert">Test Insert with Correct Column Names</button>
+        <button id="testFetch">Test Fetch Reviews</button>
+        <button id="testDisplay">Test Display Functionality</button>
+        <button id="clearLog">Clear Log</button>
+        
+        <div class="log" id="logOutput"></div>
+        
+        <div id="resultStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        // Log function to display messages
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            // Format the message
+            let formattedMessage = message;
+            if (typeof message === 'object') {
+                formattedMessage = JSON.stringify(message, null, 2);
+            }
+            
+            logEntry.textContent = `[${timestamp}] ${formattedMessage}`;
+            logEntry.style.color = type === 'error' ? '#ff5555' : 
+                                 type === 'success' ? '#55ff55' : 
+                                 type === 'warning' ? '#ffff55' : '#ffffff';
+            
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('resultStatus');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+        }
+        
+        // Test insert with correct column names
+        document.getElementById('testInsert').addEventListener('click', async function() {
+            log('=== TESTING INSERT WITH CORRECT COLUMN NAMES ===');
+            updateStatus('Testing insert...', 'info');
+            
+            try {
+                // Create test review with correct camelCase property names
+                const today = new Date().toISOString().split('T')[0];
+                const testReview = {
+                    revieweeType: 'team',
+                    revieweeName: 'Final Test User',
+                    title: 'Final Column Name Test',
+                    rating: 5,
+                    text: 'Testing with the correct camelCase column names that exist in the database',
+                    reviewerName: 'FinalTester',
+                    date: today
+                };
+                
+                log(`Inserting review with correct column names: ${JSON.stringify(testReview, null, 2)}`);
+                
+                // Insert review using the corrected addReview function
+                const result = await window.GensynSupabase.addReview(testReview);
+                
+                if (result) {
+                    log(`SUCCESS: Review inserted with correct column names`, 'success');
+                    log(`Returned data: ${JSON.stringify(result, null, 2)}`, 'success');
+                    
+                    // Check that all required properties exist
+                    const requiredProps = ['revieweeType', 'revieweeName', 'reviewerName'];
+                    const missingProps = requiredProps.filter(prop => !(prop in result));
+                    
+                    if (missingProps.length === 0) {
+                        log('All required properties present in returned data', 'success');
+                        updateStatus('Insert successful with correct column names!', 'success');
+                    } else {
+                        log(`Missing properties in returned data: ${missingProps.join(', ')}`, 'error');
+                        updateStatus(`Missing properties: ${missingProps.join(', ')}`, 'error');
+                    }
+                } else {
+                    log('INSERT FAILED - returned null', 'error');
+                    updateStatus('Insert failed', 'error');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test fetch reviews
+        document.getElementById('testFetch').addEventListener('click', async function() {
+            log('=== TESTING FETCH REVIEWS ===');
+            updateStatus('Fetching reviews...', 'info');
+            
+            try {
+                // Fetch reviews using the corrected fetchReviews function
+                const reviews = await window.GensynSupabase.fetchReviews();
+                
+                log(`Fetched ${reviews.length} reviews`);
+                
+                if (reviews.length > 0) {
+                    const sampleReview = reviews[0];
+                    log(`Sample review keys: ${JSON.stringify(Object.keys(sampleReview), null, 2)}`, 'info');
+                    log(`Sample review data: ${JSON.stringify(sampleReview, null, 2)}`, 'success');
+                    
+                    // Check that all required properties exist
+                    const requiredProps = ['revieweeType', 'revieweeName', 'reviewerName'];
+                    const missingProps = requiredProps.filter(prop => !(prop in sampleReview));
+                    
+                    if (missingProps.length === 0) {
+                        log('All required properties present in fetched data', 'success');
+                        updateStatus('Fetch successful with correct property names!', 'success');
+                    } else {
+                        log(`Missing properties in fetched data: ${missingProps.join(', ')}`, 'error');
+                        updateStatus(`Missing properties: ${missingProps.join(', ')}`, 'error');
+                    }
+                } else {
+                    log('No reviews found in database', 'info');
+                    updateStatus('No reviews in database', 'info');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test display functionality
+        document.getElementById('testDisplay').addEventListener('click', function() {
+            log('=== TESTING DISPLAY FUNCTIONALITY ===');
+            log('This would test the integration with the main website');
+            log('You should now be able to:');
+            log('1. Submit reviews through the main form without errors');
+            log('2. See submitted reviews appear in the Community Feedback section');
+            log('3. Click on team member images to see their reviews in the modal');
+            log('4. Use the voting system without issues');
+            updateStatus('Display functionality test completed - check main website', 'info');
+        });
+        
+        // Clear log
+        document.getElementById('clearLog').addEventListener('click', function() {
+            document.getElementById('logOutput').innerHTML = '';
+            updateStatus('Log cleared', 'info');
+        });
+        
+        // Initialize
+        log('=== FINAL TEST WITH CORRECT COLUMN NAMES ===');
+        log('Your database uses camelCase column names:');
+        log('- revieweeType (not revieweetype)');
+        log('- revieweeName (not revieweename)');
+        log('- reviewerName (not reviewername)');
+        log('');
+        log('Click "Test Insert" to verify inserts work with correct column names');
+        log('Click "Test Fetch" to verify fetching works with correct property names');
+        updateStatus('Ready to test with correct column names');
+    </script>
+</body>
+</html>

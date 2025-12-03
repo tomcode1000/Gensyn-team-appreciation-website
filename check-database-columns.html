@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Database Columns</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Check Database Columns</h1>
+        
+        <div class="status info">
+            <strong>Info:</strong> This tool checks what columns actually exist in your database.
+        </div>
+        
+        <button id="checkColumns">Check Actual Column Names</button>
+        <button id="testAllColumnNames">Test All Possible Column Names</button>
+        <button id="clearLog">Clear Log</button>
+        
+        <div class="log" id="logOutput"></div>
+        
+        <div id="resultStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        // Log function to display messages
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            // Format the message
+            let formattedMessage = message;
+            if (typeof message === 'object') {
+                formattedMessage = JSON.stringify(message, null, 2);
+            }
+            
+            logEntry.textContent = `[${timestamp}] ${formattedMessage}`;
+            logEntry.style.color = type === 'error' ? '#ff5555' : 
+                                 type === 'success' ? '#55ff55' : 
+                                 type === 'warning' ? '#ffff55' : '#ffffff';
+            
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('resultStatus');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+        }
+        
+        // Check actual column names
+        document.getElementById('checkColumns').addEventListener('click', async function() {
+            log('=== CHECKING ACTUAL COLUMN NAMES ===');
+            updateStatus('Checking column names...', 'info');
+            
+            try {
+                // Try to get column information using PostgreSQL system tables
+                log('Attempting to query PostgreSQL system tables...');
+                
+                // This might not work directly, so let's try a different approach
+                const possibleColumns = [
+                    'id', 'revieweetype', 'revieweeType', 'revieweename', 'revieweeName',
+                    'title', 'rating', 'text', 'reviewername', 'reviewerName', 'date', 'created_at'
+                ];
+                
+                log('Testing which columns actually exist...');
+                
+                const existingColumns = [];
+                
+                for (const column of possibleColumns) {
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from('reviews')
+                            .select(column)
+                            .limit(1);
+                        
+                        if (error) {
+                            log(`Column "${column}" does not exist: ${error.message}`, 'error');
+                        } else {
+                            log(`Column "${column}" exists`, 'success');
+                            existingColumns.push(column);
+                        }
+                    } catch (e) {
+                        log(`Error testing column "${column}": ${e.message}`, 'error');
+                    }
+                }
+                
+                log(`Existing columns: ${JSON.stringify(existingColumns, null, 2)}`, 'info');
+                updateStatus(`Found ${existingColumns.length} columns`, 'success');
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test all possible column names
+        document.getElementById('testAllColumnNames').addEventListener('click', async function() {
+            log('=== TESTING ALL POSSIBLE COLUMN NAMES ===');
+            updateStatus('Testing column names...', 'info');
+            
+            // Different possible naming conventions
+            const columnVariations = [
+                { name: 'revieweetype', description: 'lowercase' },
+                { name: 'revieweeType', description: 'camelCase' },
+                { name: 'reviewee_type', description: 'snake_case' },
+                { name: 'RevieweeType', description: 'PascalCase' },
+                { name: 'REVIEWEETYPE', description: 'UPPERCASE' }
+            ];
+            
+            const revieweeNameVariations = [
+                { name: 'revieweename', description: 'lowercase' },
+                { name: 'revieweeName', description: 'camelCase' },
+                { name: 'reviewee_name', description: 'snake_case' },
+                { name: 'RevieweeName', description: 'PascalCase' },
+                { name: 'REVIEWEENAME', description: 'UPPERCASE' }
+            ];
+            
+            const reviewerNameVariations = [
+                { name: 'reviewername', description: 'lowercase' },
+                { name: 'reviewerName', description: 'camelCase' },
+                { name: 'reviewer_name', description: 'snake_case' },
+                { name: 'ReviewerName', description: 'PascalCase' },
+                { name: 'REVIEWERNAME', description: 'UPPERCASE' }
+            ];
+            
+            log('Testing revieweetype variations...');
+            for (const variation of columnVariations) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('reviews')
+                        .select(variation.name)
+                        .limit(1);
+                    
+                    if (error) {
+                        log(`${variation.description} "${variation.name}" - ERROR: ${error.message}`, 'error');
+                    } else {
+                        log(`${variation.description} "${variation.name}" - EXISTS`, 'success');
+                    }
+                } catch (e) {
+                    log(`${variation.description} "${variation.name}" - EXCEPTION: ${e.message}`, 'error');
+                }
+            }
+            
+            log('\nTesting revieweename variations...');
+            for (const variation of revieweeNameVariations) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('reviews')
+                        .select(variation.name)
+                        .limit(1);
+                    
+                    if (error) {
+                        log(`${variation.description} "${variation.name}" - ERROR: ${error.message}`, 'error');
+                    } else {
+                        log(`${variation.description} "${variation.name}" - EXISTS`, 'success');
+                    }
+                } catch (e) {
+                    log(`${variation.description} "${variation.name}" - EXCEPTION: ${e.message}`, 'error');
+                }
+            }
+            
+            log('\nTesting reviewername variations...');
+            for (const variation of reviewerNameVariations) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('reviews')
+                        .select(variation.name)
+                        .limit(1);
+                    
+                    if (error) {
+                        log(`${variation.description} "${variation.name}" - ERROR: ${error.message}`, 'error');
+                    } else {
+                        log(`${variation.description} "${variation.name}" - EXISTS`, 'success');
+                    }
+                } catch (e) {
+                    log(`${variation.description} "${variation.name}" - EXCEPTION: ${e.message}`, 'error');
+                }
+            }
+            
+            updateStatus('Column name testing complete', 'info');
+        });
+        
+        // Clear log
+        document.getElementById('clearLog').addEventListener('click', function() {
+            document.getElementById('logOutput').innerHTML = '';
+            updateStatus('Log cleared', 'info');
+        });
+        
+        // Initialize
+        log('=== DATABASE COLUMN CHECKER ===');
+        log('Click "Check Actual Column Names" to see what columns exist');
+        log('Click "Test All Possible Column Names" to test different naming conventions');
+        updateStatus('Ready to check database columns');
+    </script>
+</body>
+</html>

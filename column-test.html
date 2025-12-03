@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Column Name Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            background-color: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: green;
+            background-color: #e8f5e9;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: blue;
+            background-color: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        pre {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Column Name Test</h1>
+        
+        <div>
+            <button id="testCamelCase">Test Camel Case Columns</button>
+            <button id="testLowerCase">Test Lower Case Columns</button>
+            <button id="discoverColumns">Discover Actual Columns</button>
+            <button id="clearOutput">Clear Output</button>
+        </div>
+        
+        <div id="output"></div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://pdhehczqtdszltszuudk.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_4Eq6DOCfHmqP_9NJriYAiA_ffv_sXGy';
+        
+        // Create Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function addOutput(message, type = 'info') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function addCodeOutput(data) {
+            const output = document.getElementById('output');
+            const pre = document.createElement('pre');
+            pre.textContent = JSON.stringify(data, null, 2);
+            output.appendChild(pre);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        document.getElementById('testCamelCase').addEventListener('click', async function() {
+            addOutput('Testing with camelCase column names...', 'info');
+            
+            const testData = {
+                revieweeType: 'team',
+                revieweeName: 'CamelCase Test',
+                title: 'CamelCase Review',
+                rating: 5,
+                text: 'Testing with camelCase column names',
+                reviewerName: 'CamelCase Tester',
+                date: new Date().toISOString().split('T')[0]
+            };
+            
+            addCodeOutput(testData);
+            
+            try {
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .insert([testData]);
+                
+                if (error) {
+                    addOutput(`CamelCase insert failed: ${error.message}`, 'error');
+                    addCodeOutput(error);
+                } else {
+                    addOutput('CamelCase insert successful!', 'success');
+                }
+            } catch (err) {
+                addOutput(`Exception during camelCase test: ${err.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('testLowerCase').addEventListener('click', async function() {
+            addOutput('Testing with lowercase column names...', 'info');
+            
+            const testData = {
+                revieweetype: 'team',
+                revieweename: 'LowerCase Test',
+                title: 'LowerCase Review',
+                rating: 5,
+                text: 'Testing with lowercase column names',
+                reviewername: 'LowerCase Tester',
+                date: new Date().toISOString().split('T')[0]
+            };
+            
+            addCodeOutput(testData);
+            
+            try {
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .insert([testData]);
+                
+                if (error) {
+                    addOutput(`LowerCase insert failed: ${error.message}`, 'error');
+                    addCodeOutput(error);
+                } else {
+                    addOutput('LowerCase insert successful!', 'success');
+                }
+            } catch (err) {
+                addOutput(`Exception during lowercase test: ${err.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('discoverColumns').addEventListener('click', async function() {
+            addOutput('Attempting to discover actual column names...', 'info');
+            
+            try {
+                // Try to get information about the table structure
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .select('*')
+                    .limit(0);
+                
+                if (error) {
+                    addOutput(`Column discovery failed: ${error.message}`, 'error');
+                    addCodeOutput(error);
+                    
+                    // Try a different approach - insert a minimal record and see what works
+                    addOutput('Trying minimal insert to discover columns...', 'info');
+                    
+                    // Try with just the most basic fields
+                    const minimalTests = [
+                        { title: 'Minimal Test', text: 'Minimal test to discover columns' },
+                        { title: 'Minimal Test 2', text: 'Another minimal test' }
+                    ];
+                    
+                    for (let i = 0; i < minimalTests.length; i++) {
+                        const test = minimalTests[i];
+                        addOutput(`Trying minimal test ${i+1}...`, 'info');
+                        
+                        const { data: insertData, error: insertError } = await supabase
+                            .from('reviews')
+                            .insert([test]);
+                            
+                        if (insertError) {
+                            addOutput(`Minimal test ${i+1} failed: ${insertError.message}`, 'error');
+                        } else {
+                            addOutput(`Minimal test ${i+1} successful!`, 'success');
+                            break;
+                        }
+                    }
+                } else {
+                    addOutput('Column discovery successful!', 'success');
+                    addOutput('Actual columns in table:', 'info');
+                    if (data && data.length === 0) {
+                        addOutput('Table exists but is empty. Unable to determine column names from select *', 'info');
+                    }
+                }
+            } catch (err) {
+                addOutput(`Exception during column discovery: ${err.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('clearOutput').addEventListener('click', function() {
+            document.getElementById('output').innerHTML = '';
+        });
+    </script>
+</body>
+</html>

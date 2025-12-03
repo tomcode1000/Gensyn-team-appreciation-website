@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Schema Refresh Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Supabase Schema Refresh Test</h1>
+        
+        <div class="status info">
+            <strong>Instructions:</strong> Use this page to test the schema refresh functionality and diagnose PGRST204 errors.
+        </div>
+        
+        <button id="refreshSchemaBtn">Refresh Schema Cache</button>
+        <button id="testInsertBtn">Test Review Insert</button>
+        <button id="fetchReviewsBtn">Fetch All Reviews</button>
+        <button id="clearLogBtn">Clear Log</button>
+        
+        <div class="log" id="logOutput"></div>
+        
+        <div id="resultStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        // Log function to display messages
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logEntry.style.color = type === 'error' ? '#ff5555' : type === 'success' ? '#55ff55' : '#ffffff';
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('resultStatus');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+        }
+        
+        // Refresh schema cache
+        document.getElementById('refreshSchemaBtn').addEventListener('click', async function() {
+            log('Manually triggering schema refresh...');
+            updateStatus('Refreshing schema cache...', 'info');
+            
+            try {
+                const result = await window.GensynSupabase.manualSchemaRefresh();
+                if (result) {
+                    log('Schema cache refreshed successfully!', 'success');
+                    updateStatus('Schema cache refreshed successfully!', 'success');
+                } else {
+                    log('Failed to refresh schema cache', 'error');
+                    updateStatus('Failed to refresh schema cache', 'error');
+                }
+            } catch (error) {
+                log(`Error during schema refresh: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test review insert
+        document.getElementById('testInsertBtn').addEventListener('click', async function() {
+            log('Testing review insert with sample data...');
+            updateStatus('Testing review insert...', 'info');
+            
+            const sampleReview = {
+                revieweeType: 'team',
+                revieweeName: 'Test User',
+                title: 'Schema Refresh Test',
+                rating: 5,
+                text: 'Testing the fix for PGRST204 errors',
+                reviewerName: 'Tester',
+                date: new Date().toISOString().split('T')[0]
+            };
+            
+            try {
+                const result = await window.GensynSupabase.addReview(sampleReview);
+                if (result) {
+                    log(`Review inserted successfully: ${JSON.stringify(result)}`, 'success');
+                    updateStatus('Review inserted successfully!', 'success');
+                } else {
+                    log('Failed to insert review', 'error');
+                    updateStatus('Failed to insert review', 'error');
+                }
+            } catch (error) {
+                log(`Error inserting review: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Fetch all reviews
+        document.getElementById('fetchReviewsBtn').addEventListener('click', async function() {
+            log('Fetching all reviews...');
+            updateStatus('Fetching reviews...', 'info');
+            
+            try {
+                const reviews = await window.GensynSupabase.fetchReviews();
+                log(`Fetched ${reviews.length} reviews`);
+                
+                if (reviews.length > 0) {
+                    log('Sample review: ' + JSON.stringify(reviews[0]), 'success');
+                    updateStatus(`Successfully fetched ${reviews.length} reviews`, 'success');
+                } else {
+                    log('No reviews found in database', 'info');
+                    updateStatus('No reviews found in database', 'info');
+                }
+            } catch (error) {
+                log(`Error fetching reviews: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Clear log
+        document.getElementById('clearLogBtn').addEventListener('click', function() {
+            document.getElementById('logOutput').innerHTML = '';
+            updateStatus('Log cleared', 'info');
+        });
+        
+        // Initialize
+        log('Schema refresh test page loaded');
+        updateStatus('Ready to test schema refresh functionality');
+    </script>
+</body>
+</html>

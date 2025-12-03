@@ -61,7 +61,7 @@
                         <div class="winners-container">
                             <div class="winner-card">
                                 <div class="winner-badge">🏆</div>
-                                <img id="topPerformerImage" src="Core%20Team/antonio%20goncalves.jpg" alt="Top Performer" class="member-image">
+                                <img id="topPerformerImage" src="Core Team/antonio goncalves.jpg" alt="Top Performer" class="member-image">
                                 <div class="winner-info">
                                     <h4 id="topPerformerName">Antonio Goncalves</h4>
                                     <p id="topPerformerPosition">Smart Contract Developer</p>
@@ -76,14 +76,6 @@
                         <p>As a community member, vote for the person who has made the biggest impact this week!</p>
                         
                         <div class="voting-controls">
-                            <div class="form-group">
-                                <label for="voteCategory">Category:</label>
-                                <select id="voteCategory">
-                                    <option value="team">Core Team Member</option>
-                                    <option value="moderator">Moderator</option>
-                                </select>
-                            </div>
-                            
                             <div class="form-group">
                                 <label for="voteCandidate">Select Candidate:</label>
                                 <select id="voteCandidate">
@@ -189,6 +181,8 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

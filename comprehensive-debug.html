@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Supabase Debug</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            background-color: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: green;
+            background-color: #e8f5e9;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .info {
+            color: blue;
+            background-color: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        pre {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Comprehensive Supabase Debug Tool</h1>
+        
+        <div>
+            <button id="testConnection">1. Test Connection</button>
+            <button id="checkTableStructure">2. Check Table Structure</button>
+            <button id="testSimpleInsert">3. Test Simple Insert (No Date)</button>
+            <button id="testFullInsert">4. Test Full Insert (With Date)</button>
+            <button id="clearOutput">Clear Output</button>
+        </div>
+        
+        <div id="output"></div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://pdhehczqtdszltszuudk.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_4Eq6DOCfHmqP_9NJriYAiA_ffv_sXGy';
+        
+        // Create Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function addOutput(message, type = 'info') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function addCodeOutput(data) {
+            const output = document.getElementById('output');
+            const pre = document.createElement('pre');
+            pre.textContent = JSON.stringify(data, null, 2);
+            output.appendChild(pre);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        document.getElementById('testConnection').addEventListener('click', async function() {
+            addOutput('Testing connection...', 'info');
+            
+            try {
+                // Simple query to test connection
+                const { data, error, count } = await supabase
+                    .from('reviews')
+                    .select('id', { count: 'exact' })
+                    .limit(1);
+                
+                if (error) {
+                    addOutput(`Connection test failed: ${error.message}`, 'error');
+                    addCodeOutput(error);
+                } else {
+                    addOutput(`Connection successful! Found ${count} reviews in table.`, 'success');
+                }
+            } catch (err) {
+                addOutput(`Exception during connection test: ${err.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('checkTableStructure').addEventListener('click', async function() {
+            addOutput('Checking table structure...', 'info');
+            
+            try {
+                // Try to get table information by selecting all columns but no rows
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .select('*')
+                    .limit(0); // Just get the structure, no data
+                
+                if (error) {
+                    addOutput(`Schema check failed: ${error.message}`, 'error');
+                    addCodeOutput(error);
+                } else {
+                    addOutput('Schema check successful!', 'success');
+                    if (data && data.length === 0) {
+                        addOutput('Table exists but is empty.', 'info');
+                    }
+                    // Try to get column info by inserting a dummy record and immediately deleting it
+                    addOutput('Attempting to determine column structure...', 'info');
+                    
+                    // Try a simple select with specific columns
+                    const columnTest = await supabase
+                        .from('reviews')
+                        .select('id, revieweeType, revieweeName, title, rating, text, reviewerName, date, created_at')
+                        .limit(1);
+                        
+                    if (columnTest.error) {
+                        addOutput(`Column test failed: ${columnTest.error.message}`, 'error');
+                        addCodeOutput(columnTest.error);
+                    } else {
+                        addOutput('Column test successful - all expected columns exist!', 'success');
+                        if (columnTest.data && columnTest.data.length > 0) {
+                            addOutput('Sample row structure:', 'info');
+                            addCodeOutput(columnTest.data[0]);
+                        }
+                    }
+                }
+            } catch (err) {
+                addOutput(`Exception during schema check: ${err.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('testSimpleInsert').addEventListener('click', async function() {
+            addOutput('Testing simple insert (without date field)...', 'info');
+            
+            // Test data without date field
+            const testData = {
+                revieweeType: 'team',
+                revieweeName: 'Debug Test',
+                title: 'Debug Review',
+                rating: 5,
+                text: 'This is a debug test review without date field',
+                reviewerName: 'Debugger'
+            };
+            
+            addCodeOutput(testData);
+            
+            try {
+                // Try inserting without date field
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .insert([testData]);
+                
+                if (error) {
+                    addOutput(`Simple insert failed: ${error.message}`, 'error');
+                    addCodeOutput(error);
+                } else {
+                    addOutput('Simple insert successful!', 'success');
+                    
+                    // Try to fetch the inserted record
+                    const { data: fetchData, error: fetchError } = await supabase
+                        .from('reviews')
+                        .select('*')
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                        
+                    if (fetchError) {
+                        addOutput(`Fetch after insert failed: ${fetchError.message}`, 'error');
+                    } else if (fetchData && fetchData.length > 0) {
+                        addOutput('Fetched inserted record:', 'success');
+                        addCodeOutput(fetchData[0]);
+                    }
+                }
+            } catch (err) {
+                addOutput(`Exception during simple insert: ${err.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('testFullInsert').addEventListener('click', async function() {
+            addOutput('Testing full insert (with date field)...', 'info');
+            
+            // Test data with date field
+            const testData = {
+                revieweeType: 'team',
+                revieweeName: 'Debug Test',
+                title: 'Debug Review',
+                rating: 5,
+                text: 'This is a debug test review with date field',
+                reviewerName: 'Debugger',
+                date: new Date().toISOString().split('T')[0]
+            };
+            
+            addCodeOutput(testData);
+            
+            try {
+                // Try inserting with date field
+                const { data, error } = await supabase
+                    .from('reviews')
+                    .insert([testData]);
+                
+                if (error) {
+                    addOutput(`Full insert failed: ${error.message}`, 'error');
+                    addCodeOutput(error);
+                } else {
+                    addOutput('Full insert successful!', 'success');
+                    
+                    // Try to fetch the inserted record
+                    const { data: fetchData, error: fetchError } = await supabase
+                        .from('reviews')
+                        .select('*')
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                        
+                    if (fetchError) {
+                        addOutput(`Fetch after insert failed: ${fetchError.message}`, 'error');
+                    } else if (fetchData && fetchData.length > 0) {
+                        addOutput('Fetched inserted record:', 'success');
+                        addCodeOutput(fetchData[0]);
+                    }
+                }
+            } catch (err) {
+                addOutput(`Exception during full insert: ${err.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('clearOutput').addEventListener('click', function() {
+            document.getElementById('output').innerHTML = '';
+        });
+    </script>
+</body>
+</html>

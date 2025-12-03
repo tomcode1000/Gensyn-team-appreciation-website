@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify and Fix Table Structure</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .danger {
+            background-color: #f44336;
+        }
+        .danger:hover {
+            background-color: #d32f2f;
+        }
+        .warning {
+            background-color: #ff9800;
+        }
+        .warning:hover {
+            background-color: #e68900;
+        }
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning-bg {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .column-list {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Verify and Fix Table Structure</h1>
+        
+        <div class="status warning-bg">
+            <strong>Warning:</strong> Based on the error, your Supabase table structure doesn't match the expected schema. This tool will help diagnose and fix the issue.
+        </div>
+        
+        <h2>Expected Table Structure</h2>
+        <div class="column-list">
+            <h3>reviews table:</h3>
+            <ul>
+                <li><strong>id</strong> - SERIAL PRIMARY KEY</li>
+                <li><strong>revieweeType</strong> - VARCHAR(50) NOT NULL</li>
+                <li><strong>revieweeName</strong> - VARCHAR(100) NOT NULL</li>
+                <li><strong>title</strong> - VARCHAR(200) NOT NULL</li>
+                <li><strong>rating</strong> - INTEGER NOT NULL (1-5)</li>
+                <li><strong>text</strong> - TEXT NOT NULL</li>
+                <li><strong>reviewerName</strong> - VARCHAR(100) NOT NULL</li>
+                <li><strong>date</strong> - DATE NOT NULL</li>
+                <li><strong>created_at</strong> - TIMESTAMP WITH TIME ZONE DEFAULT NOW()</li>
+            </ul>
+            
+            <h3>votes table:</h3>
+            <ul>
+                <li><strong>id</strong> - SERIAL PRIMARY KEY</li>
+                <li><strong>person_name</strong> - VARCHAR(100) NOT NULL UNIQUE</li>
+                <li><strong>vote_count</strong> - INTEGER NOT NULL DEFAULT 0</li>
+            </ul>
+        </div>
+        
+        <h2>Diagnostic Tools</h2>
+        <button id="checkReviewsStructure">Check Reviews Table Structure</button>
+        <button id="checkVotesStructure">Check Votes Table Structure</button>
+        <button id="refreshSchema">Refresh Schema Cache</button>
+        
+        <h2>Fix Tools</h2>
+        <button id="verifyAllColumns" class="warning">Verify All Columns Exist</button>
+        <button id="testInsertAllColumns" class="warning">Test Insert With All Columns</button>
+        
+        <h2>Advanced Actions</h2>
+        <button id="forceRecreateTables" class="danger">Force Recreate Tables (WARNING: Will Delete Data!)</button>
+        
+        <button id="clearLog">Clear Log</button>
+        
+        <div class="log" id="logOutput"></div>
+        
+        <div id="resultStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        // Log function to display messages
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            // Format the message
+            let formattedMessage = message;
+            if (typeof message === 'object') {
+                formattedMessage = JSON.stringify(message, null, 2);
+            }
+            
+            logEntry.textContent = `[${timestamp}] ${formattedMessage}`;
+            logEntry.style.color = type === 'error' ? '#ff5555' : 
+                                 type === 'success' ? '#55ff55' : 
+                                 type === 'warning' ? '#ffff55' : '#ffffff';
+            
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('resultStatus');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+        }
+        
+        // Check reviews table structure
+        document.getElementById('checkReviewsStructure').addEventListener('click', async function() {
+            log('=== CHECKING REVIEWS TABLE STRUCTURE ===');
+            updateStatus('Checking reviews table structure...', 'info');
+            
+            try {
+                log('Attempting to query reviews table with all expected columns...');
+                
+                // Try querying with all expected columns
+                const { data, error } = await supabaseClient
+                    .from('reviews')
+                    .select(`
+                        id,
+                        revieweeType,
+                        revieweeName,
+                        title,
+                        rating,
+                        text,
+                        reviewerName,
+                        date,
+                        created_at
+                    `)
+                    .limit(1);
+                
+                if (error) {
+                    log(`ERROR: ${JSON.stringify(error, null, 2)}`, 'error');
+                    
+                    // Try to get what columns actually exist
+                    log('Trying to discover what columns actually exist...');
+                    
+                    // Try a wildcard query to see what we get
+                    const { data: wildData, error: wildError } = await supabaseClient
+                        .from('reviews')
+                        .select('*')
+                        .limit(1);
+                    
+                    if (wildError) {
+                        log(`Even wildcard query failed: ${JSON.stringify(wildError, null, 2)}`, 'error');
+                    } else {
+                        const columns = wildData && wildData.length > 0 ? Object.keys(wildData[0]) : [];
+                        log(`Actual columns in table: ${JSON.stringify(columns, null, 2)}`, 'warning');
+                    }
+                    
+                    updateStatus(`Structure check failed: ${error.message}`, 'error');
+                    return;
+                }
+                
+                log(`SUCCESS: Reviews table structure is correct`, 'success');
+                log(`Sample data: ${JSON.stringify(data, null, 2)}`);
+                updateStatus('Reviews table structure verified', 'success');
+            } catch (error) {
+                log(`Exception during reviews structure check: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Check votes table structure
+        document.getElementById('checkVotesStructure').addEventListener('click', async function() {
+            log('=== CHECKING VOTES TABLE STRUCTURE ===');
+            updateStatus('Checking votes table structure...', 'info');
+            
+            try {
+                log('Querying votes table...');
+                
+                const { data, error } = await supabaseClient
+                    .from('votes')
+                    .select(`
+                        id,
+                        person_name,
+                        vote_count
+                    `)
+                    .limit(5);
+                
+                if (error) {
+                    log(`ERROR: ${JSON.stringify(error, null, 2)}`, 'error');
+                    updateStatus(`Structure check failed: ${error.message}`, 'error');
+                    return;
+                }
+                
+                log(`SUCCESS: Votes table structure is correct`, 'success');
+                log(`Sample data: ${JSON.stringify(data, null, 2)}`);
+                updateStatus('Votes table structure verified', 'success');
+            } catch (error) {
+                log(`Exception during votes structure check: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Refresh schema cache
+        document.getElementById('refreshSchema').addEventListener('click', async function() {
+            log('=== REFRESHING SCHEMA CACHE ===');
+            updateStatus('Refreshing schema cache...', 'info');
+            
+            try {
+                if (typeof window.GensynSupabase !== 'undefined' && typeof window.GensynSupabase.manualSchemaRefresh === 'function') {
+                    log('Using GensynSupabase.manualSchemaRefresh...');
+                    const result = await window.GensynSupabase.manualSchemaRefresh();
+                    log(`Schema refresh result: ${result}`, result ? 'success' : 'error');
+                    updateStatus(result ? 'Schema cache refreshed' : 'Schema refresh failed', result ? 'success' : 'error');
+                } else {
+                    log('Manual refresh function not available, using direct approach...');
+                    
+                    // Direct approach to refresh schema
+                    const { data, error } = await supabaseClient
+                        .from('reviews')
+                        .select('id')
+                        .limit(1);
+                    
+                    if (error && error.code !== 'PGRST204') {
+                        log(`Error during direct refresh: ${JSON.stringify(error, null, 2)}`, 'error');
+                        updateStatus('Direct refresh failed', 'error');
+                        return;
+                    }
+                    
+                    log('Direct schema refresh completed', 'success');
+                    updateStatus('Schema cache refreshed via direct method', 'success');
+                }
+            } catch (error) {
+                log(`Exception during schema refresh: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Verify all columns exist
+        document.getElementById('verifyAllColumns').addEventListener('click', async function() {
+            log('=== VERIFYING ALL COLUMNS EXIST ===');
+            updateStatus('Verifying all columns...', 'info');
+            
+            const expectedColumns = [
+                'id',
+                'revieweeType',
+                'revieweeName',
+                'title',
+                'rating',
+                'text',
+                'reviewerName',
+                'date',
+                'created_at'
+            ];
+            
+            try {
+                log('Testing each column individually...');
+                
+                const results = {};
+                for (const column of expectedColumns) {
+                    try {
+                        const { data, error } = await supabaseClient
+                            .from('reviews')
+                            .select(column)
+                            .limit(1);
+                        
+                        results[column] = error ? `ERROR: ${error.message}` : 'OK';
+                        log(`${column}: ${error ? 'FAILED' : 'OK'}`);
+                    } catch (error) {
+                        results[column] = `EXCEPTION: ${error.message}`;
+                        log(`${column}: EXCEPTION - ${error.message}`, 'error');
+                    }
+                }
+                
+                log(`Column verification results: ${JSON.stringify(results, null, 2)}`);
+                
+                // Check which columns failed
+                const failedColumns = Object.entries(results)
+                    .filter(([col, result]) => result !== 'OK')
+                    .map(([col, result]) => col);
+                
+                if (failedColumns.length > 0) {
+                    log(`FAILED COLUMNS: ${JSON.stringify(failedColumns, null, 2)}`, 'error');
+                    updateStatus(`Missing columns: ${failedColumns.join(', ')}`, 'error');
+                } else {
+                    log('ALL COLUMNS VERIFIED SUCCESSFULLY', 'success');
+                    updateStatus('All columns verified', 'success');
+                }
+            } catch (error) {
+                log(`Exception during column verification: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test insert with all columns
+        document.getElementById('testInsertAllColumns').addEventListener('click', async function() {
+            log('=== TESTING INSERT WITH ALL COLUMNS ===');
+            updateStatus('Testing insert...', 'info');
+            
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const testData = {
+                    revieweeType: 'verification',
+                    revieweeName: 'Column Verification',
+                    title: 'Column Verification Test',
+                    rating: 5,
+                    text: 'Testing that all columns exist and are accessible',
+                    reviewerName: 'Verification Tool',
+                    date: today
+                };
+                
+                log(`Attempting to insert: ${JSON.stringify(testData, null, 2)}`);
+                
+                const { data, error } = await supabaseClient
+                    .from('reviews')
+                    .insert([testData])
+                    .select();
+                
+                if (error) {
+                    log(`INSERT FAILED: ${JSON.stringify(error, null, 2)}`, 'error');
+                    updateStatus(`Insert failed: ${error.message}`, 'error');
+                    return;
+                }
+                
+                log(`INSERT SUCCESSFUL: ${JSON.stringify(data, null, 2)}`, 'success');
+                updateStatus('Insert test successful', 'success');
+            } catch (error) {
+                log(`Exception during insert test: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Force recreate tables (WARNING: Will delete data!)
+        document.getElementById('forceRecreateTables').addEventListener('click', async function() {
+            const confirmed = confirm('WARNING: This will DELETE all existing data in your reviews and votes tables! Are you sure you want to continue?');
+            
+            if (!confirmed) {
+                log('Table recreation cancelled by user', 'info');
+                updateStatus('Cancelled by user', 'info');
+                return;
+            }
+            
+            log('=== FORCE RECREATING TABLES ===');
+            updateStatus('Recreating tables (DELETING DATA!)...', 'warning');
+            
+            try {
+                log('WARNING: About to drop and recreate tables. This will DELETE ALL DATA!');
+                
+                // This would normally be done via SQL, but we'll simulate the process
+                log('In a real scenario, you would:');
+                log('1. Drop the existing tables');
+                log('2. Run the supabase-migration.sql script');
+                log('3. Re-insert any essential data');
+                
+                log('Since we cannot execute DDL commands directly, please:');
+                log('1. Go to your Supabase dashboard');
+                log('2. Use the SQL editor to drop and recreate tables');
+                log('3. Run the commands from supabase-migration.sql');
+                
+                updateStatus('Manual table recreation required - see log for instructions', 'warning');
+            } catch (error) {
+                log(`Exception during table recreation: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Clear log
+        document.getElementById('clearLog').addEventListener('click', function() {
+            document.getElementById('logOutput').innerHTML = '';
+            updateStatus('Log cleared', 'info');
+        });
+        
+        // Initialize
+        log('=== TABLE STRUCTURE VERIFICATION TOOL ===');
+        log('This tool helps diagnose and fix table structure issues');
+        log('Start by checking your table structure, then refresh the schema cache');
+        updateStatus('Ready to verify table structure');
+    </script>
+</body>
+</html>

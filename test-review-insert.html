@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Review Insert</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .log {
+            background-color: #000;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Review Insert</h1>
+        
+        <div class="status info">
+            <strong>Info:</strong> This tool helps test review insertion and diagnose issues.
+        </div>
+        
+        <h2>Test Review Form</h2>
+        <form id="testForm">
+            <label for="revieweeType">Reviewee Type:</label>
+            <select id="revieweeType" required>
+                <option value="">Select Type</option>
+                <option value="team">Team Member</option>
+                <option value="moderator">Moderator</option>
+            </select>
+            
+            <label for="revieweeName">Reviewee Name:</label>
+            <input type="text" id="revieweeName" placeholder="Enter name" required>
+            
+            <label for="title">Review Title:</label>
+            <input type="text" id="title" placeholder="Enter title" required>
+            
+            <label for="rating">Rating (1-5):</label>
+            <input type="number" id="rating" min="1" max="5" placeholder="Enter rating" required>
+            
+            <label for="text">Review Text:</label>
+            <textarea id="text" rows="4" placeholder="Enter review text" required></textarea>
+            
+            <label for="reviewerName">Reviewer Name:</label>
+            <input type="text" id="reviewerName" placeholder="Enter your name">
+            
+            <label for="date">Date (YYYY-MM-DD):</label>
+            <input type="text" id="date" placeholder="YYYY-MM-DD" required>
+            
+            <button type="submit">Test Insert</button>
+        </form>
+        
+        <button id="testPredefined">Test with Predefined Data</button>
+        <button id="clearLog">Clear Log</button>
+        
+        <div class="log" id="logOutput"></div>
+        
+        <div id="resultStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script>
+        // Log function to display messages
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            // Format the message
+            let formattedMessage = message;
+            if (typeof message === 'object') {
+                formattedMessage = JSON.stringify(message, null, 2);
+            }
+            
+            logEntry.textContent = `[${timestamp}] ${formattedMessage}`;
+            logEntry.style.color = type === 'error' ? '#ff5555' : 
+                                 type === 'success' ? '#55ff55' : 
+                                 type === 'warning' ? '#ffff55' : '#ffffff';
+            
+            logOutput.appendChild(logEntry);
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('resultStatus');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+        }
+        
+        // Set today's date as default
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
+        });
+        
+        // Handle form submission
+        document.getElementById('testForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            log('=== TESTING REVIEW INSERT ===');
+            updateStatus('Testing review insert...', 'info');
+            
+            // Get form values
+            const review = {
+                revieweeType: document.getElementById('revieweeType').value,
+                revieweeName: document.getElementById('revieweeName').value,
+                title: document.getElementById('title').value,
+                rating: parseInt(document.getElementById('rating').value),
+                text: document.getElementById('text').value,
+                reviewerName: document.getElementById('reviewerName').value || 'Anonymous',
+                date: document.getElementById('date').value
+            };
+            
+            log(`Attempting to insert review: ${JSON.stringify(review, null, 2)}`);
+            
+            try {
+                // Validate date format
+                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                if (!dateRegex.test(review.date)) {
+                    log(`INVALID DATE FORMAT: ${review.date}. Expected YYYY-MM-DD`, 'error');
+                    updateStatus('Invalid date format. Use YYYY-MM-DD', 'error');
+                    return;
+                }
+                
+                // Validate rating
+                if (review.rating < 1 || review.rating > 5) {
+                    log(`INVALID RATING: ${review.rating}. Must be 1-5`, 'error');
+                    updateStatus('Invalid rating. Must be 1-5', 'error');
+                    return;
+                }
+                
+                // Validate required fields
+                if (!review.revieweeType || !review.revieweeName || !review.title || !review.text) {
+                    log('MISSING REQUIRED FIELDS', 'error');
+                    updateStatus('Missing required fields', 'error');
+                    return;
+                }
+                
+                // Try to insert using the addReview function
+                log('Calling window.GensynSupabase.addReview...');
+                const result = await window.GensynSupabase.addReview(review);
+                
+                if (result) {
+                    log(`SUCCESS: ${JSON.stringify(result, null, 2)}`, 'success');
+                    updateStatus('Review inserted successfully!', 'success');
+                } else {
+                    log('INSERT RETURNED NULL/UNDEFINED', 'error');
+                    updateStatus('Insert failed - returned null', 'error');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                log(`Error stack: ${error.stack}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Test with predefined data
+        document.getElementById('testPredefined').addEventListener('click', async function() {
+            log('=== TESTING WITH PREDEFINED DATA ===');
+            updateStatus('Testing with predefined data...', 'info');
+            
+            const predefinedReview = {
+                revieweeType: 'team',
+                revieweeName: 'Test User',
+                title: 'Test Review',
+                rating: 5,
+                text: 'This is a test review to diagnose insertion issues.',
+                reviewerName: 'Diagnostic Tool',
+                date: new Date().toISOString().split('T')[0]
+            };
+            
+            log(`Predefined review: ${JSON.stringify(predefinedReview, null, 2)}`);
+            
+            try {
+                const result = await window.GensynSupabase.addReview(predefinedReview);
+                
+                if (result) {
+                    log(`SUCCESS: ${JSON.stringify(result, null, 2)}`, 'success');
+                    updateStatus('Predefined test successful!', 'success');
+                } else {
+                    log('PREDEFINED TEST FAILED - returned null', 'error');
+                    updateStatus('Predefined test failed', 'error');
+                }
+            } catch (error) {
+                log(`EXCEPTION: ${error.message}`, 'error');
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Clear log
+        document.getElementById('clearLog').addEventListener('click', function() {
+            document.getElementById('logOutput').innerHTML = '';
+            updateStatus('Log cleared', 'info');
+        });
+        
+        // Initialize
+        log('=== REVIEW INSERTION TEST TOOL ===');
+        log('Fill out the form and click "Test Insert" to test review insertion');
+        log('Or click "Test with Predefined Data" for a quick test');
+        updateStatus('Ready to test review insertion');
+    </script>
+</body>
+</html>
